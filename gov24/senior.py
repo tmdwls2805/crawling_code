@@ -7,8 +7,9 @@ from bs4 import BeautifulSoup
 
 def crawl_senior():
     first_form = []
-    issue_list = []
-    content_excel_sheet = {
+    second_form = []
+    third_form = []
+    first_form_sheet = {
         '제목': None,
         '지원형태': None,
         '지원내용': None,
@@ -21,14 +22,15 @@ def crawl_senior():
         '소관기관': None,
         '최종수정일': None,
     }
-    issue_excel_sheet = {}
+    second_form_sheet = {}
+    third_form_sheet = {}
     # 대상 URL
     url = "https://www.gov.kr"  # 메인 페이지 URL로 시작
     base_path = "/search?srhQuery=노인&collectionCd=service&textAnalyQuery=&policyType=&webappType=&realQuery=노인&pageSize=10&publishOrg=&sfield=&sort=RANK&condSelTxt=&reSrchQuery=&sortSel=RANK&pageIndex="
     page_index = 1
+    content_index = 1
 
     while True:
-
         # 요청할 URL 생성
         search_path = base_path + str(page_index)
         response = requests.get(url + search_path)
@@ -50,81 +52,43 @@ def crawl_senior():
             connect_url.raise_for_status()
             connect_soup = BeautifulSoup(connect_url.text, 'html.parser')
 
-            content_btn_class = 'contents layer'
-            issue_btn_class = 'contentsWrap mw_wrap'
+            first_form_class = 'contents layer'
+            second_form_class = 'contentsWrap mw_wrap'
+            third_form_class = 'cont-inner info-detail'
 
-            contents = connect_soup.find('div', class_=content_btn_class)
-            # 발급하기 버튼 유형
+            contents = connect_soup.find('div', class_=first_form_class)
+
+            # 폼 클래스와 처리 로직을 매핑
+            form_classes = [
+                (first_form_class, "form1", process_form_1, first_form, first_form_sheet),
+                (second_form_class, "form2", None, second_form, second_form_sheet),  # 필요한 함수/변수를 지정
+                (third_form_class, "form3", None, third_form, third_form_sheet)   # 필요한 함수/변수를 지정
+            ]
+
+            contents = None
+
+            for idx, (form_class, form_name, process_func, form_list, form_sheet) in enumerate(form_classes):
+                contents = connect_soup.find('div', class_=form_class)
+                if contents:
+                    print(f"{content_index}. Processing {form_name} ...")
+                    if process_func:  # 처리 함수가 있는 경우 실행
+                        processed_data = process_func(form_sheet, connect_soup)
+                        form_list.append(processed_data)
+                    break
+
+            # 처리할 폼을 찾지 못한 경우
             if contents is None:
-                contents = connect_soup.find('div', class_=issue_btn_class)
-            # 내용보기 버튼 유형
-            else:
-                ces = copy.deepcopy(content_excel_sheet)  # 딕셔너리 복사
-                title  = connect_soup.find('div', id='pageCont').find('h2').text  # 제목
-                if title:
-                    ces['제목'] = title
-                else:
-                    print(f'{title} title: error!, error!')
+                print("This is a new form. Since it cannot be processed, move on to the next step.")
 
-                # section 1: 지원형태
-                cont_box_list = connect_soup.find_all('ul', class_='cont-box-lst')
-                cont_box_list_0 = cont_box_list[0].find_all('li')
-                for i in range(len(cont_box_list_0)):
-                    apply_title = cont_box_list_0[i].find('p', class_='tt').text
-                    if apply_title:
-                        apply_type_tag = cont_box_list_0[0].find('div', class_='tx')
-                        if apply_type_tag:
-                            apply_type = decode_html(apply_type_tag)
-                            ces[apply_title] = post_processing_apply_type(apply_type)
-                        else:
-                            print(f'{title} section 1: error!, error!')
 
-                # section 3: 지원대상
-                # cont_box_list_1 = cont_box_list[1].find_all('li')
-                apply_people_tag = cont_box_list[1].find('div', class_='tx')
-                if apply_people_tag:
-                    apply_people = decode_html(apply_people_tag)
-                    ces['지원대상'] = post_processing_apply_content(apply_people)
-                else:
-                    print(f'{title} section 3: error!, error!')
+            # 처리할 폼을 찾지 못한 경우
+            if contents is None:
+                print("This is a new form. Since it cannot be processed, move on to the next step.")
 
-                # section 4: 절차/방법 :: 신청기한 :: 구비서류 :: 접수기관
-                cont_box_list_2 = cont_box_list[2].find_all('li')
-                for i in range(len(cont_box_list_2)):
-                    used_title = cont_box_list_2[i].find('p', class_='tt')
-                    if not used_title:
-                        continue
-                    used_content_tag = cont_box_list_2[i].find('div', class_='tx')
-                    if used_content_tag:
-                        used_content = decode_html(used_content_tag)
-                        ces[used_title.text] = post_processing_apply_content(used_content)
-                    else:
-                        print(f'{title} section 4 {used_title.text}: error!, error!')
-
-                # section 5: 근거법령, 소정기관, 최종수정일
-                cont_box_list_3 = cont_box_list[3].find_all('li')
-                for i in range(len(cont_box_list_3)):
-                    ref_title = cont_box_list_3[i].find('p', class_='tt')
-                    if not ref_title:
-                        continue
-                    ref_content_tag = cont_box_list_3[i].find('div', class_='tx')
-                    if ref_content_tag:
-                        ref_content = decode_html(ref_content_tag)
-                        ref_content_result = post_processing_apply_content(ref_content)
-                        if ref_title.text == '근거법령':
-                            ces[ref_title.text] = html_to_dictList(ref_content_result)
-                        else:
-                            ces[ref_title.text] = ref_content_result
-                    else:
-                        print(f'{title} section 5 {ref_title.text}: error!, error!')
-
-                # 리스트에 추가    
-                first_form.append(ces)
+            content_index += 1
         print(f"Crawling is done!: page {page_index}")
         page_index += 1
 
-    print(len(first_form))
-    print(first_form)
     return(first_form)
 
 
@@ -174,12 +138,72 @@ def html_to_dictList(html_list):
 
     return result
 
+def process_form_1(first_form_sheet, connect_soup):
+    ffs = copy.deepcopy(first_form_sheet)  # 딕셔너리 복사
+    title  = connect_soup.find('div', id='pageCont').find('h2').text  # 제목
+    if title:
+        ffs['제목'] = title
+    else:
+        print(f'{title} title: error!, error!')
+
+    # section 1: 지원형태
+    cont_box_list = connect_soup.find_all('ul', class_='cont-box-lst')
+    cont_box_list_0 = cont_box_list[0].find_all('li')
+    for i in range(len(cont_box_list_0)):
+        apply_title = cont_box_list_0[i].find('p', class_='tt').text
+        if apply_title:
+            apply_type_tag = cont_box_list_0[0].find('div', class_='tx')
+            if apply_type_tag:
+                apply_type = decode_html(apply_type_tag)
+                ffs[apply_title] = post_processing_apply_type(apply_type)
+            else:
+                print(f'{title} section 1: error!, error!')
+
+    # section 3: 지원대상
+    # cont_box_list_1 = cont_box_list[1].find_all('li')
+    apply_people_tag = cont_box_list[1].find('div', class_='tx')
+    if apply_people_tag:
+        apply_people = decode_html(apply_people_tag)
+        ffs['지원대상'] = post_processing_apply_content(apply_people)
+    else:
+        print(f'{title} section 3: error!, error!')
+
+    # section 4: 절차/방법 :: 신청기한 :: 구비서류 :: 접수기관
+    cont_box_list_2 = cont_box_list[2].find_all('li')
+    for i in range(len(cont_box_list_2)):
+        used_title = cont_box_list_2[i].find('p', class_='tt')
+        if not used_title:
+            continue
+        used_content_tag = cont_box_list_2[i].find('div', class_='tx')
+        if used_content_tag:
+            used_content = decode_html(used_content_tag)
+            ffs[used_title.text] = post_processing_apply_content(used_content)
+        else:
+            print(f'{title} section 4 {used_title.text}: error!, error!')
+
+    # section 5: 근거법령 :: 소정기관 :: 최종수정일
+    cont_box_list_3 = cont_box_list[3].find_all('li')
+    for i in range(len(cont_box_list_3)):
+        ref_title = cont_box_list_3[i].find('p', class_='tt')
+        if not ref_title:
+            continue
+        ref_content_tag = cont_box_list_3[i].find('div', class_='tx')
+        if ref_content_tag:
+            ref_content = decode_html(ref_content_tag)
+            ref_content_result = post_processing_apply_content(ref_content)
+            if ref_title.text == '근거법령':
+                ffs[ref_title.text] = html_to_dictList(ref_content_result)
+            else:
+                ffs[ref_title.text] = ref_content_result
+        else:
+            print(f'{title} section 5 {ref_title.text}: error!, error!')
+
+    return ffs
+
 crawl_senior()
 
 # 발급하기 버튼 유형 기능 추가
 # excel로 출력하는 기능 추가
 # 양을 미리 측정해서 얼마나 남았는지 몇퍼센트 진행되었는지 표시하는 기능 추가
-# 다른 양식 문제 해결 법 찾아야함
 # 새로운 양식이나 오류 생기면 해당 제목만 가져오고 나머지 진행
-
-# 양식 유형 더 조사해보기
+# url 추가
