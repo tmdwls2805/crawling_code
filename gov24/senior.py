@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 
 def crawl_senior():
-    content_list = []
+    first_form = []
     issue_list = []
     content_excel_sheet = {
         '제목': None,
@@ -39,7 +39,7 @@ def crawl_senior():
 
         # 크롤링할 데이터 추출
         results = soup.find('div', class_='result_cont_list')
-        if page_index == 3:
+        if not results:
             print('All crawling is done!')
             break
 
@@ -69,20 +69,15 @@ def crawl_senior():
                 # section 1: 지원형태
                 cont_box_list = connect_soup.find_all('ul', class_='cont-box-lst')
                 cont_box_list_0 = cont_box_list[0].find_all('li')
-                apply_type_tag = cont_box_list_0[0].find('div', class_='tx')
-                if apply_type_tag:
-                    apply_type = decode_html(apply_type_tag)
-                    ces['지원형태'] = post_processing_apply_type(apply_type)
-                else:
-                    print(f'{title} section 1: error!, error!')
-
-                # section 2: 지원내용
-                apply_content_tag = cont_box_list_0[1].find('div', class_='tx')
-                if apply_content_tag:
-                    apply_content = decode_html(apply_content_tag)
-                    ces['지원내용'] = post_processing_apply_content(apply_content)
-                else:
-                    print(f'{title} section 2: error!, error!')
+                for i in range(len(cont_box_list_0)):
+                    apply_title = cont_box_list_0[i].find('p', class_='tt').text
+                    if apply_title:
+                        apply_type_tag = cont_box_list_0[0].find('div', class_='tx')
+                        if apply_type_tag:
+                            apply_type = decode_html(apply_type_tag)
+                            ces[apply_title] = post_processing_apply_type(apply_type)
+                        else:
+                            print(f'{title} section 1: error!, error!')
 
                 # section 3: 지원대상
                 # cont_box_list_1 = cont_box_list[1].find_all('li')
@@ -124,12 +119,13 @@ def crawl_senior():
                         print(f'{title} section 5 {ref_title.text}: error!, error!')
 
                 # 리스트에 추가    
-                content_list.append(ces)
+                first_form.append(ces)
         print(f"Crawling is done!: page {page_index}")
         page_index += 1
 
-    print(len(content_list))
-    return(content_list)
+    print(len(first_form))
+    print(first_form)
+    return(first_form)
 
 
 def decode_html(html_tag):
@@ -142,7 +138,7 @@ def post_processing_apply_type(apply_type):
     return result
 
 def post_processing_apply_content(apply_content):
-    content_list = []
+    form_data = []
     cleaned_list = [item.strip() for item in apply_content.split() if item.strip()]
     original_string = " ".join(cleaned_list)
     split_result = re.split(r'(○ |- )', original_string)
@@ -160,8 +156,8 @@ def post_processing_apply_content(apply_content):
         final_result.append(temp.strip())
     for split in final_result:
         if split != '':
-            content_list.append(split.strip())
-    return content_list
+            form_data.append(split.strip())
+    return form_data
 
 def html_to_dictList(html_list):
     html_content = ''.join(html_list)
@@ -184,3 +180,6 @@ crawl_senior()
 # excel로 출력하는 기능 추가
 # 양을 미리 측정해서 얼마나 남았는지 몇퍼센트 진행되었는지 표시하는 기능 추가
 # 다른 양식 문제 해결 법 찾아야함
+# 새로운 양식이나 오류 생기면 해당 제목만 가져오고 나머지 진행
+
+# 양식 유형 더 조사해보기
