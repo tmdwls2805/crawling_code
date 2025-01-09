@@ -21,9 +21,28 @@ def crawl_senior():
         '근거법령': None,
         '소관기관': None,
         '최종수정일': None,
+        'url': None,
     }
-    second_form_sheet = {}
-    third_form_sheet = {}
+    second_form_sheet = {
+        '제목': None,
+        '신청방법': None,
+        '신청자격': None,
+        '처리기간': None,
+        '신청서': None,
+        '구비서류': None,
+        '수수료': None,
+        'url': None,
+    }
+    third_form_sheet = {
+        '제목': None,
+        '신청방법': None,
+        '신청자격': None,
+        '처리기간': None,
+        '신청서': None,
+        '구비서류': None,
+        '수수료': None,
+        'url': None,
+    }
     # 대상 URL
     url = "https://www.gov.kr"  # 메인 페이지 URL로 시작
     base_path = "/search?srhQuery=노인&collectionCd=service&textAnalyQuery=&policyType=&webappType=&realQuery=노인&pageSize=10&publishOrg=&sfield=&sort=RANK&condSelTxt=&reSrchQuery=&sortSel=RANK&pageIndex="
@@ -41,9 +60,12 @@ def crawl_senior():
 
         # 크롤링할 데이터 추출
         results = soup.find('div', class_='result_cont_list')
-        if not results:
-            print('All crawling is done!')
+
+        if page_index > 3:
             break
+        # if not results:
+        #     print('All crawling is done!')
+        #     break
 
         li_tag = results.find_all('li', class_='result_li_box')
         for li in li_tag:
@@ -61,8 +83,8 @@ def crawl_senior():
             # 폼 클래스와 처리 로직을 매핑
             form_classes = [
                 (first_form_class, "form1", process_form_1, first_form, first_form_sheet),
-                (second_form_class, "form2", None, second_form, second_form_sheet),  # 필요한 함수/변수를 지정
-                (third_form_class, "form3", None, third_form, third_form_sheet)   # 필요한 함수/변수를 지정
+                (second_form_class, "form2", process_form_2, second_form, second_form_sheet),
+                (third_form_class, "form3", process_form_3, third_form, third_form_sheet),
             ]
 
             contents = None
@@ -73,6 +95,7 @@ def crawl_senior():
                     print(f"{content_index}. Processing {form_name} ...")
                     if process_func:  # 처리 함수가 있는 경우 실행
                         processed_data = process_func(form_sheet, connect_soup)
+                        processed_data['url'] = url + url_tag['href']
                         form_list.append(processed_data)
                     break
 
@@ -89,7 +112,7 @@ def crawl_senior():
         print(f"Crawling is done!: page {page_index}")
         page_index += 1
 
-    return(first_form)
+    return(third_form)
 
 
 def decode_html(html_tag):
@@ -137,6 +160,9 @@ def html_to_dictList(html_list):
         result.append({text: href})
 
     return result
+
+def post_processing_text(content):
+    return re.sub(r'[\r\n\t ]', '', content).strip()
 
 def process_form_1(first_form_sheet, connect_soup):
     ffs = copy.deepcopy(first_form_sheet)  # 딕셔너리 복사
@@ -200,10 +226,31 @@ def process_form_1(first_form_sheet, connect_soup):
 
     return ffs
 
-crawl_senior()
+def process_form_2(second_form_sheet, connect_soup):
+    sfs = copy.deepcopy(second_form_sheet)
+    # 제목
+    title = connect_soup.find('div', class_='title', id='pageCont').find('h2').text
+    sfs['제목'] = title
 
-# 발급하기 버튼 유형 기능 추가
-# excel로 출력하는 기능 추가
-# 양을 미리 측정해서 얼마나 남았는지 몇퍼센트 진행되었는지 표시하는 기능 추가
-# 새로운 양식이나 오류 생기면 해당 제목만 가져오고 나머지 진행
-# url 추가
+    # wrap_col
+    wrap_col = connect_soup.find('div', class_='wrap_col')
+
+    # 서비스 개요
+    service_info = wrap_col.find('div', class_='info_svc_list').find_all('li')
+    for i in range(len(service_info)):
+        info_title = service_info[i].find('p', class_='tit').text
+        sfs[info_title] = post_processing_text(service_info[i].find('p', class_='txt').text)
+
+    return sfs
+
+def process_form_3(third_form_sheet, connect_soup):
+    tfs = copy.deepcopy(third_form_sheet)
+    tfs['제목'] = post_processing_text(connect_soup.find('h2').text)
+
+    return tfs
+
+print(crawl_senior())
+
+
+# excel로 출력하는 기능 추가 (sheet별로)
+# form_3 테이블 정보 가져오기
