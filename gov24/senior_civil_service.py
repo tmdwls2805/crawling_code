@@ -1,18 +1,16 @@
 from datetime import datetime
 import requests
-import time
 import os
 import copy
-import re
 
 from bs4 import BeautifulSoup
-from openpyxl import load_workbook
-from openpyxl.styles import Alignment, Font
 import pandas as pd
+from common import post_processing_text, post_processing_apply_content
+from common import convert_list_to_multiline, apply_text_wrap_and_adjust
 
 
 def crawl_senior():
-    first_form = []  # type: list
+    first_form = [] # type: list
     second_form = [] # type: list
     third_form = [] # type: list
     first_form_sheet = {
@@ -132,29 +130,6 @@ def post_processing_apply_type(apply_type):
     return result
 
 
-def post_processing_apply_content(apply_content):
-    form_data = []
-    cleaned_list = [item.strip() for item in apply_content.split() if item.strip()]
-    original_string = " ".join(cleaned_list)
-    split_result = re.split(r'(○ |- )', original_string)
-    final_result = []
-    temp = ""
-    for part in split_result:
-        if re.match(r'(○ |- )', part):  # 구분자인 경우
-            if temp:  # temp에 기존 값이 있다면 추가
-                final_result.append(temp.strip())
-            temp = part  # 구분자로 초기화
-        else:
-            temp += part  # 기존 temp에 누적
-
-    if temp:  # 마지막 부분 추가
-        final_result.append(temp.strip())
-    for split in final_result:
-        if split != '':
-            form_data.append(split.strip())
-    return form_data
-
-
 def html_to_dictList(html_list):
     html_content = ''.join(html_list)
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -169,10 +144,6 @@ def html_to_dictList(html_list):
         result.append({text: href})
 
     return result
-
-
-def post_processing_text(content):
-    return re.sub(r'[\r\n\t ]', '', content).strip()
 
 
 def process_form_1(first_form_sheet, connect_soup):
@@ -328,45 +299,12 @@ def process_form_3(third_form_sheet, connect_soup):
     return tfs
 
 
-def convert_list_to_multiline(data):
-    """
-    리스트 데이터를 줄바꿈('\n')으로 연결된 문자열로 변환.
-    리스트가 아닌 데이터는 그대로 반환.
-    """
-    if isinstance(data, list):
-        return '\n'.join([str(item) for item in data])  # 리스트를 줄바꿈으로 연결
-    return data  # 리스트가 아니면 그대로 반환
-
-
-def apply_text_wrap_and_adjust(file_path, sheet_names):
-    """
-    엑셀 파일의 모든 셀에 텍스트 줄 바꿈 속성을 적용하고, 셀 높이를 글씨 크기에 맞게 조정.
-    """
-    wb = load_workbook(file_path)
-    for sheet_name in sheet_names:
-        sheet = wb[sheet_name]
-        for row in sheet.iter_rows():
-            for cell in row:
-                if cell.value:  # 셀이 비어 있지 않을 때만 줄 바꿈 및 정렬 적용
-                    cell.alignment = Alignment(wrap_text=True, vertical='top')  # 줄 바꿈 및 위쪽 정렬
-                    cell.font = Font(size=12)  # 글씨 크기 조정 (예: 12pt)
-
-        # 행 높이 조정
-        for row in sheet.iter_rows():
-            max_line_count = max(
-                len(str(cell.value).split('\n')) if cell.value else 1 for cell in row
-            )
-            sheet.row_dimensions[row[0].row].height = max_line_count * 15  # 줄 수에 따라 높이 조정
-
-    wb.save(file_path)
-
-
 def generate_excel(first_form, second_form, third_form):
     # 현재 날짜를 기준으로 파일 경로 생성
     now = datetime.now().strftime('%Y%m%d')
     output_dir = 'senior_generate_excel'
     os.makedirs(output_dir, exist_ok=True)  # 디렉토리 생성
-    output_path = f'{output_dir}/{now}_gov24_senior.xlsx'
+    output_path = f'{output_dir}/{now}_정부24_시니어_민원서비스.xlsx'
 
     # 각 데이터의 리스트 항목을 변환
     first_form = [{k: convert_list_to_multiline(v) for k, v in item.items()} for item in first_form]
@@ -392,4 +330,6 @@ def generate_excel(first_form, second_form, third_form):
 
     print(f"Excel file has been saved to {output_path}")
 
-crawl_senior()
+
+if __name__ == '__main__':
+    crawl_senior()
