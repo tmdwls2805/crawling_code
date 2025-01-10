@@ -1,8 +1,14 @@
+from datetime import datetime
 import requests
 import time
+import os
 import copy
 import re
+
 from bs4 import BeautifulSoup
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Font
+import pandas as pd
 
 
 def crawl_senior():
@@ -63,8 +69,6 @@ def crawl_senior():
         # 크롤링할 데이터 추출
         results = soup.find('div', class_='result_cont_list')
 
-        # if page_index > 3:
-        #     break
         if not results:
             print('All crawling is done!')
             break
@@ -114,15 +118,19 @@ def crawl_senior():
         print(f"Crawling is done!: page {page_index}")
         page_index += 1
         # time.sleep(3)
+    generate_excel(first_form, second_form, third_form)
+
 
 def decode_html(html_tag):
     raw_html = html_tag.decode_contents()
     return raw_html.replace('<br/>', '').replace('</br>', '').replace('<br>', '').replace('&nbsp;', '').strip()
 
+
 def post_processing_apply_type(apply_type):
     cleaned_list = [item.strip() for item in apply_type.split() if item.strip()]
     result = ", ".join(cleaned_list)
     return result
+
 
 def post_processing_apply_content(apply_content):
     form_data = []
@@ -146,6 +154,7 @@ def post_processing_apply_content(apply_content):
             form_data.append(split.strip())
     return form_data
 
+
 def html_to_dictList(html_list):
     html_content = ''.join(html_list)
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -161,8 +170,10 @@ def html_to_dictList(html_list):
 
     return result
 
+
 def post_processing_text(content):
     return re.sub(r'[\r\n\t ]', '', content).strip()
+
 
 def process_form_1(first_form_sheet, connect_soup):
     ffs = copy.deepcopy(first_form_sheet)  # 딕셔너리 복사
@@ -226,6 +237,7 @@ def process_form_1(first_form_sheet, connect_soup):
 
     return ffs
 
+
 def process_form_2(second_form_sheet, connect_soup):
     sfs = copy.deepcopy(second_form_sheet)
     # 제목
@@ -249,9 +261,9 @@ def process_form_2(second_form_sheet, connect_soup):
             break
     
     if organ_h4:
-        sfs['담당기관'] = organ_h4.get_text(" ", strip=True).replace('제도를 담당하는 기관:  ', '').strip()
-
+        sfs['담당기관'] = organ_h4.get_text(" ", strip=True).replace('제도를 담당하는 기관 : ', '').strip()
     return sfs
+
 
 def process_form_3(third_form_sheet, connect_soup):
     tfs = copy.deepcopy(third_form_sheet)
@@ -281,8 +293,7 @@ def process_form_3(third_form_sheet, connect_soup):
         organ = organ_h4.find_next('ul')
         strong_tag = organ.find('strong')
         if strong_tag:
-            tfs['담당기관'] = strong_tag.get_text(" ", strip=True).strip()
-
+            tfs['담당기관'] = strong_tag.get_text(" ", strip=True).replace('제도를 담당하는 기관 : ', '').strip()
     # 구비서류
     required_docs_h4 = None
     for h4 in h4_tags:
@@ -316,6 +327,69 @@ def process_form_3(third_form_sheet, connect_soup):
 
     return tfs
 
-crawl_senior()
 
-# excel로 출력하는 기능 추가 (sheet별로)
+def convert_list_to_multiline(data):
+    """
+    리스트 데이터를 줄바꿈('\n')으로 연결된 문자열로 변환.
+    리스트가 아닌 데이터는 그대로 반환.
+    """
+    if isinstance(data, list):
+        return '\n'.join([str(item) for item in data])  # 리스트를 줄바꿈으로 연결
+    return data  # 리스트가 아니면 그대로 반환
+
+
+def apply_text_wrap_and_adjust(file_path, sheet_names):
+    """
+    엑셀 파일의 모든 셀에 텍스트 줄 바꿈 속성을 적용하고, 셀 높이를 글씨 크기에 맞게 조정.
+    """
+    wb = load_workbook(file_path)
+    for sheet_name in sheet_names:
+        sheet = wb[sheet_name]
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.value:  # 셀이 비어 있지 않을 때만 줄 바꿈 및 정렬 적용
+                    cell.alignment = Alignment(wrap_text=True, vertical='top')  # 줄 바꿈 및 위쪽 정렬
+                    cell.font = Font(size=12)  # 글씨 크기 조정 (예: 12pt)
+
+        # 행 높이 조정
+        for row in sheet.iter_rows():
+            max_line_count = max(
+                len(str(cell.value).split('\n')) if cell.value else 1 for cell in row
+            )
+            sheet.row_dimensions[row[0].row].height = max_line_count * 15  # 줄 수에 따라 높이 조정
+
+    wb.save(file_path)
+
+
+def generate_excel(first_form, second_form, third_form):
+    # 현재 날짜를 기준으로 파일 경로 생성
+    now = datetime.now().strftime('%Y%m%d')
+    output_dir = 'senior_generate_excel'
+    os.makedirs(output_dir, exist_ok=True)  # 디렉토리 생성
+    output_path = f'{output_dir}/{now}_gov24_senior.xlsx'
+
+    # 각 데이터의 리스트 항목을 변환
+    first_form = [{k: convert_list_to_multiline(v) for k, v in item.items()} for item in first_form]
+    second_form = [{k: convert_list_to_multiline(v) for k, v in item.items()} for item in second_form]
+    third_form = [{k: convert_list_to_multiline(v) for k, v in item.items()} for item in third_form]
+
+    # ExcelWriter를 사용하여 여러 시트를 작성
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        # 첫 번째 폼 저장
+        df1 = pd.DataFrame(first_form)
+        df1.to_excel(writer, index=False, sheet_name='form1')
+
+        # 두 번째 폼 저장
+        df2 = pd.DataFrame(second_form)
+        df2.to_excel(writer, index=False, sheet_name='form2')
+
+        # 세 번째 폼 저장
+        df3 = pd.DataFrame(third_form)
+        df3.to_excel(writer, index=False, sheet_name='form3')
+
+    # 텍스트 줄 바꿈, 셀 높이 조정 및 위쪽 정렬 적용
+    apply_text_wrap_and_adjust(output_path, ['form1', 'form2', 'form3'])
+
+    print(f"Excel file has been saved to {output_path}")
+
+crawl_senior()
