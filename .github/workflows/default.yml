@@ -61,4 +61,4 @@ jobs:
         else
           echo "::add-matcher::.github/workflows/mypy-matcher.json"
         fi
-        python -m mypy --no-color-output --disable-error-code "annotation-unchecked"
+        python -m mypy --no-color-output ./gov24 --disable-error-code "annotation-unchecked"
