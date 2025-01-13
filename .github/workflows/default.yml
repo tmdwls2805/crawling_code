@@ -9,6 +9,10 @@ jobs:
   lint:
     runs-on: ["self-hosted", "Windows", "X64"]
     steps:
+    - name: Allow PowerShell Scripts
+      shell: cmd
+      run: powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force"
+
     - name: Pull commits
       uses: actions/checkout@v4
 
@@ -26,6 +30,10 @@ jobs:
   typecheck:
     runs-on: ["self-hosted", "Windows", "X64"]
     steps:
+    - name: Allow PowerShell Scripts
+      shell: cmd
+      run: powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force"
+
     - name: Pull commits
       uses: actions/checkout@v4
 
