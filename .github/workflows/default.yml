@@ -1,14 +1,14 @@
 	
   on:
     push:
-      branches: [ master ]
+      branches: [ master, main, feat/* ]
     pull_request:
-      branches: [ master ]
+      branches: [ master, main, feat/* ]
 	
   jobs:
     build:
 	
-      runs-on: ["self-hosted", "linux", "X64"]
+      runs-on: ["self-hosted", "linux", "X64", "ci"]
 	
       steps:
       - uses: actions/checkout@v2
