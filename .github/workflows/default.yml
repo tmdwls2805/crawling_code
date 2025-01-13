@@ -11,9 +11,6 @@ jobs:
   lint:
     runs-on: ["self-hosted", "Windows", "X64", "ci"]
     steps:
-    - name: Set PowerShell Execution Policy
-      run: |
-        Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
     - name: Pull commits
       uses: actions/checkout@v4
     - name: Set up Python 3.13
