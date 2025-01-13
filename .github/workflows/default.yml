@@ -9,7 +9,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ["self-hosted", "linux", "X64", "ci"]
+    runs-on: ["self-hosted", "Windows", "X64", "ci"]
     steps:
     - name: Pull commits
       uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
         python -m flake8 --ignore=C812,W503,C815,C816,W504
   
   typecheck:
-    runs-on: ["self-hosted", "linux", "X64", "ci"]
+    runs-on: ["self-hosted", "Windows", "X64", "ci"]
     steps:
     - name: Pull commits
       uses: actions/checkout@v4
