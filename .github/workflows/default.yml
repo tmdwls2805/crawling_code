@@ -5,56 +5,64 @@ on:
     branches-ignore: ["production"]
   pull_request:
 
-
 jobs:
   lint:
-    runs-on: ["self-hosted", "Windows", "X64", "ci"]
+    runs-on: ["self-hosted", "Windows", "X64"]
     steps:
+    - name: Set PowerShell Execution Policy
+      shell: powershell
+      run: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
     - name: Pull commits
       uses: actions/checkout@v4
-    - name: Set up Python 3.13
+
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: "3.13"
+        python-version: "3.11"
 
     - name: Install dependencies
-      env:
-        REQUIREMENTS_FILE: lint
       run: |
-        source ~/.venv/bin/activate
+        python -m venv .venv
+        .venv\Scripts\activate
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Lint with flake8
       run: |
-        source ~/.venv/bin/activate
+        .venv\Scripts\activate
         if [ "$GITHUB_EVENT_NAME" == "pull_request" -a -n "$GITHUB_HEAD_REF" ]; then
           echo "(skipping matchers for pull request from local branches)"
         else
           echo "::add-matcher::.github/workflows/flake8-matcher.json"
         fi
         python -m flake8 --ignore=C812,W503,C815,C816,W504
-  
+
   typecheck:
-    runs-on: ["self-hosted", "Windows", "X64", "ci"]
+    runs-on: ["self-hosted", "Windows", "X64"]
     steps:
+    - name: Set PowerShell Execution Policy
+      shell: powershell
+      run: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
     - name: Pull commits
       uses: actions/checkout@v4
-    - name: Set up Python 3.13
+
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: "3.13"
-    
+        python-version: "3.11"
+
     - name: Install dependencies
-      env:
-        REQUIREMENTS_FILE: typecheck
       run: |
-        source ~/.venv/bin/activate
+        python -m venv .venv
+        .venv\Scripts\activate
         python -m pip install --upgrade pip
-  
+        pip install -r requirements.txt
+
     - name: Type check with mypy
       run: |
-        source ~/.venv/bin/activate
+        .venv\Scripts\activate
         if [ "$GITHUB_EVENT_NAME" == "pull_request" -a -n "$GITHUB_HEAD_REF" ]; then
           echo "(skipping matchers for pull request from local branches)"
         else
