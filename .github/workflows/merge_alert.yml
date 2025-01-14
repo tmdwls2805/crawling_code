@@ -15,3 +15,4 @@ jobs:
                 curl -X POST -H "Content-Type: application/json" \
                 -d '{"text": "🚀 The main branch has been updated with new changes!", "user": "GitHub Bot"}' \
                 "${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}"
+
