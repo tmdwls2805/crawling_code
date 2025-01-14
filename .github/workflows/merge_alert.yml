@@ -1,0 +1,17 @@
+name: Notify on Merge to Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+    notify:
+        runs-on: "self-hosted"
+
+        steps:
+            - name: Send notification to Synology Chat
+              run: |
+                curl -X POST -H "Content-Type: application/json" \
+                -d '{"text": "🚀 The main branch has been updated with new changes!", "user": "GitHub Bot"}' \
+                "${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}"
