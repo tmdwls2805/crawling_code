@@ -1,4 +1,4 @@
-name: Notify on Merge to Main
+name: Notify Synology Chat on Main Merge
 
 on:
   push:
@@ -6,13 +6,12 @@ on:
       - main
 
 jobs:
-    notify:
-        runs-on: "self-hosted"
+  notify:
+    runs-on: ["self-hosted", "linux", "X64", "ci"]
 
-        steps:
-            - name: Send notification to Synology Chat
-              run: |
-                curl -X POST -H "Content-Type: application/json" \
-                -d '{"text": "🚀 The main branch has been updated with new changes!", "user": "GitHub Bot"}' \
-                "${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}"
-
+    steps:
+      - name: Send notification to Synology Chat
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{"text": "🚀 A new merge has been completed to the main branch!", "user": "GitHub Actions Bot"}' \
+          "${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}"
