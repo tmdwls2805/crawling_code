@@ -1,17 +1,25 @@
-name: Notify Synology Chat on Main Merge
+name: Notify Synology Chat on PR Merge
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types: [closed]
 
 jobs:
-  notify:
-    runs-on: ["self-hosted", "linux", "X64", "ci"]
+  notify-chat:
+    if: github.event.pull_request.merged == true
+    runs-on: self-hosted
 
     steps:
       - name: Send notification to Synology Chat
+        env:
+          WEBHOOK_URL: ${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}
         run: |
           curl -X POST -H "Content-Type: application/json" \
-          -d '{"text": "🚀 A new merge has been completed to the main branch!", "user": "GitHub Actions Bot"}' \
-          "${{ secrets.SYNOLOGY_CHAT_WEBHOOK }}"
+          -d '{
+            "text": "Pull Request #${{ github.event.pull_request.number }} merged 🎉!\n\n
+            **Title:** ${{ github.event.pull_request.title }}\n
+            **Merged by:** ${{ github.event.pull_request.merged_by.login }}\n
+            **Repository:** ${{ github.repository }}\n
+            **URL:** ${{ github.event.pull_request.html_url }}"
+          }' \
+          "$WEBHOOK_URL"
